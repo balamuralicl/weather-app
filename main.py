@@ -13,8 +13,6 @@ app = FastAPI()
 
 API_KEY = os.getenv("API_KEY")  # Will work from .env locally or from GitHub Actions on EC2
 
-print(API_KEY)
-
 @app.get("/weather")
 def get_weather(lat: float = Query(...), lon: float = Query(...)):
     if not API_KEY:

@@ -30,7 +30,10 @@ jobs:
       - name: Deploy to Dev EC2
         run: |
           ssh -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
+            set -e
+            cd ~/weather-app || exit 1
             docker stop weather-api || true && docker rm weather-api || true
+            docker build -t weather-api:latest .
             docker run -d --name weather-api \
               -e API_KEY=${{ secrets.API_KEY }} \
               -e APP_VERSION=${APP_VERSION} \
@@ -60,7 +63,10 @@ jobs:
       - name: Deploy to Prod EC2
         run: |
           ssh -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_HOST }} << 'EOF'
+            set -e
+            cd ~/weather-app || exit 1
             docker stop weather-api || true && docker rm weather-api || true
+            docker build -t weather-api:latest .
             docker run -d --name weather-api \
               -e API_KEY=${{ secrets.API_KEY }} \
               -e APP_VERSION=${APP_VERSION} \

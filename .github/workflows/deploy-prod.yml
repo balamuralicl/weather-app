@@ -2,74 +2,67 @@ name: CI/CD - Weather API (Prod)
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+    paths:
+      - '**.py'
+      - Dockerfile
+      - .github/workflows/deploy-prod.yml
 
 env:
   IMAGE_NAME: weather-api
 
 jobs:
-  build-and-push-prod:
+  build-and-push:
+    name: Build & Push to ECR (Prod)
     runs-on: ubuntu-latest
     environment: prod
+
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+    - name: Checkout Code
+      uses: actions/checkout@v3
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-      - name: Confirm AWS Secrets Are Loaded
-        run: |
-          echo "Access Key (partial): ${AWS_ACCESS_KEY_ID:0:4}****"
-          echo "Region: $AWS_REGION"
-          echo "Account: $AWS_ACCOUNT_ID"
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        run: echo "::set-output name=token::$(aws ecr get-login-password --region ${{ secrets.AWS_REGION }})"
+    - name: Login to Amazon ECR
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+        username: AWS
+        password: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-      - name: Docker Login
-        uses: docker/login-action@v2
-        with:
-          registry: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
-          username: AWS
-          password: ${{ steps.login-ecr.outputs.token }}
+    - name: Build and Push Docker Image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: |
+          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}:latest
+          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-      - name: Build and Push to ECR
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}:latest
-            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}:${{ github.sha }}
-
-  deploy-prod:
-    needs: build-and-push-prod
+  deploy:
+    name: Deploy to EC2 (Prod)
     runs-on: ubuntu-latest
+    needs: build-and-push
     environment: prod
+
     steps:
-      - name: Deploy to Prod EC2
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ec2-user
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            IMAGE=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/weather-api
-            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
+    - name: Deploy over SSH to EC2
+      uses: appleboy/ssh-action@v0.1.8
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ec2-user
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          IMAGE=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
             docker login --username AWS --password-stdin $IMAGE
-            docker stop weather-api || true && docker rm weather-api || true
-            docker pull $IMAGE:latest
-            docker run -d -p 8000:8000 --name weather-api \
-              -e API_KEY=${{ secrets.API_KEY }} \
-              $IMAGE:latest
+          docker stop weather-api || true && docker rm weather-api || true
+          docker pull $IMAGE:latest
+          docker run -d -p 8000:8000 --name weather-api \
+            -e API_KEY=${{ secrets.API_KEY }} \
+            $IMAGE:latest

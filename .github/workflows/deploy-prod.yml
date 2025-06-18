@@ -1,25 +1,25 @@
-name: CI/CD - Weather API (Prod)
+name: CI/CD - Weather API Prod
 
 on:
   push:
     branches:
       - main
+    paths:
+      - '**.py'
+      - Dockerfile
+      - .github/workflows/deploy-prod.yml
 
 env:
   IMAGE_NAME: weather-api
 
 jobs:
-  build-and-deploy-prod:
+  build-and-push-prod:
     runs-on: ubuntu-latest
+    name: Build & Push to Prod ECR
     environment: prod
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-
-      - name: Install Docker
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y docker.io
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -40,7 +40,26 @@ jobs:
           docker push $IMAGE:latest
           docker push $IMAGE:${{ github.sha }}
 
-      - name: Deploy to Prod EC2
+  deploy-prod:
+    needs: build-and-push-prod
+    runs-on: ubuntu-latest
+    name: Deploy to Prod EC2
+    environment: prod
+    steps:
+      - name: Install Docker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates curl gnupg
+          sudo install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+          echo \
+            "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+            $(lsb_release -cs) stable" | \
+            sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+      - name: Deploy to EC2
         uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -48,12 +67,16 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             IMAGE=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/weather-api
-            sudo yum install -y docker || true
-            sudo service docker start || true
-            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
-            docker login --username AWS --password-stdin $IMAGE
-            docker stop weather-api || true && docker rm weather-api || true
-            docker pull $IMAGE:latest
-            docker run -d -p 8000:8000 --name weather-api \
-              -e API_KEY=${{ secrets.API_KEY }} \
-              $IMAGE:latest
+            sudo yum update -y
+            sudo yum install -y docker
+            sudo service docker start
+            sudo usermod -a -G docker ec2-user
+            newgrp docker <<EONG
+              aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
+              docker login --username AWS --password-stdin $IMAGE
+              docker stop weather-api || true && docker rm weather-api || true
+              docker pull $IMAGE:latest
+              docker run -d -p 8000:8000 --name weather-api \
+                -e API_KEY=${{ secrets.API_KEY }} \
+                $IMAGE:latest
+            EONG

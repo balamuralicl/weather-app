@@ -1,17 +1,17 @@
-name: CI/CD - Weather API (Prod)
+name: CI/CD - Weather API (Dev)
 
 on:
   push:
     branches:
-      - main
+      - dev
 
 env:
   IMAGE_NAME: weather-api
 
 jobs:
-  build-and-push-prod:
+  build-and-push-dev:
     runs-on: ubuntu-latest
-    environment: prod
+    environment: dev
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -43,12 +43,12 @@ jobs:
             ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}:latest
             ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-  deploy-prod:
-    needs: build-and-push-prod
+  deploy-dev:
+    needs: build-and-push-dev
     runs-on: ubuntu-latest
-    environment: prod
+    environment: dev
     steps:
-      - name: Deploy to Prod EC2
+      - name: Deploy to Dev EC2
         uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ secrets.EC2_HOST }}

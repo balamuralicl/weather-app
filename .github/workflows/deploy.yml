@@ -16,6 +16,8 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3
+    - name: Debug Region
+      run: echo "Region is ${{ secrets.AWS_REGION }}"
 
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v2

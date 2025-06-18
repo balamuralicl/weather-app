@@ -1,0 +1,59 @@
+name: CI/CD - Weather API (Prod)
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  IMAGE_NAME: weather-api
+
+jobs:
+  build-and-deploy-prod:
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Install Docker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker.io
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to ECR
+        run: aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
+             docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+      - name: Build & Push Docker Image
+        run: |
+          IMAGE=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}
+          docker build -t $IMAGE:latest .
+          docker tag $IMAGE:latest $IMAGE:${{ github.sha }}
+          docker push $IMAGE:latest
+          docker push $IMAGE:${{ github.sha }}
+
+      - name: Deploy to Prod EC2
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            IMAGE=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/weather-api
+            sudo yum install -y docker || true
+            sudo service docker start || true
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
+            docker login --username AWS --password-stdin $IMAGE
+            docker stop weather-api || true && docker rm weather-api || true
+            docker pull $IMAGE:latest
+            docker run -d -p 8000:8000 --name weather-api \
+              -e API_KEY=${{ secrets.API_KEY }} \
+              $IMAGE:latest

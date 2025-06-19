@@ -4,7 +4,8 @@ on:
   push:
     branches: 
      - dev
-     - dev/**
+     - 'dev/**'
+     - 'dev-*'
     paths:
       - '**.py'
       - Dockerfile

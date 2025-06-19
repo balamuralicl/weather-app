@@ -26,11 +26,34 @@ def version():
     }
 
 
+
 @app.get("/weather")
-def get_weather(lat: float = Query(...), lon: float = Query(...)):
+def get_weather(
+    lat: float = Query(...),
+    lon: float = Query(...),
+    unit: str = Query("metric", regex="^(metric|imperial)$")
+):
     if not API_KEY:
         return {"error": "API key missing"}
-    url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={API_KEY}&units=metric"
+
+    url = (
+        f"https://api.openweathermap.org/data/2.5/weather?"
+        f"lat={lat}&lon={lon}&appid={API_KEY}&units={unit}"
+    )
     print(f"Calling: {url}")
     response = requests.get(url)
-    return response.json()
+    
+    if response.status_code != 200:
+        return {"error": "Failed to fetch weather data", "details": response.text}
+
+    data = response.json()
+    temp = data["main"]["temp"]
+    city = data.get("name", "Unknown location")
+
+    unit_symbol = "°C" if unit == "metric" else "°F"
+    
+    return {
+        "city": city,
+        "temperature": f"{temp}{unit_symbol}",
+        "unit": "Celsius" if unit == "metric" else "Fahrenheit"
+    }

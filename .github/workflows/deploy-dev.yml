@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - dev
+      - dev/**
 
 env:
   IMAGE_NAME: weather-api

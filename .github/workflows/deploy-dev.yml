@@ -3,13 +3,7 @@ name: CI/CD - Weather API (Dev)
 on:
   push:
     branches: 
-     - dev
-     - 'dev/**'
-     - 'dev-*'
-    paths:
-      - '**.py'
-      - Dockerfile
-      - .github/workflows/deploy-prod.yml
+    - dev/**
 
 env:
   IMAGE_NAME: weather-api

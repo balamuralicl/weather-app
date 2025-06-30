@@ -2,7 +2,6 @@ from fastapi import FastAPI, Query
 import requests
 import os
 
-# Load .env locally, skip if not found (e.g., in EC2)
 try:
     from dotenv import load_dotenv
     load_dotenv()

@@ -2,16 +2,29 @@ replicaCount: 2
 
 image:
   repository: 467763721296.dkr.ecr.us-east-1.amazonaws.com/weather-api
-  tag: latest  # or stable if you're pushing with that tag
+  tag: latest
+  pullPolicy: Always
 
-service:
-  type: LoadBalancer
-  port: 80
+containerPort: 8000
+
+livenessProbe:
+  path: /health
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  path: /health
+  initialDelaySeconds: 5
+  periodSeconds: 5
 
 resources:
   limits:
-    cpu: 1000m
+    cpu: 500m
     memory: 512Mi
   requests:
-    cpu: 500m
+    cpu: 250m
     memory: 256Mi
+
+env:
+  - name: ENVIRONMENT
+    value: production

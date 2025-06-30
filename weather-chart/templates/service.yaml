@@ -4,8 +4,8 @@ metadata:
   name: {{ .Release.Name }}-weather
 spec:
   type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.targetPort }}
   selector:
     app: {{ .Release.Name }}-weather
-  ports:
-    - port: 80
-      targetPort: {{ .Values.service.port }}

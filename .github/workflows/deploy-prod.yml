@@ -48,13 +48,16 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v3
 
-    - name: Extract Kubeconfig
-      run: |
-        echo "${{ secrets.KUBECONFIG_FILE }}" | base64 -d > kubeconfig
-        export KUBECONFIG=$PWD/kubeconfig
+    - name: Configure AWS CLI
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Set KUBECONFIG for job
-      run: echo "KUBECONFIG=$PWD/kubeconfig" >> $GITHUB_ENV
+    - name: Update kubeconfig for EKS
+      run: |
+        aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.CLUSTER_NAME }}
 
     - name: Install Helm
       uses: azure/setup-helm@v3

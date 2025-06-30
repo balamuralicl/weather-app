@@ -1,0 +1,13 @@
+replicaCount: 2
+
+image:
+  repository: 467763721296.dkr.ecr.us-west-2.amazonaws.com/weather-api
+  tag: latest  # or stable if you're pushing with that tag
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+  requests:
+    cpu: 500m
+    memory: 256Mi

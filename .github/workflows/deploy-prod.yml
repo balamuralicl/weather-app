@@ -56,10 +56,14 @@ jobs:
     - name: Extract kubeconfig
       run: |
         echo "${{ secrets.KUBECONFIG_FILE }}" | base64 -d > kubeconfig
+        chmod 600 kubeconfig
         echo "KUBECONFIG=$PWD/kubeconfig" >> $GITHUB_ENV
-        
-    - name: Set KUBECONFIG path
-      run: echo "KUBECONFIG=$PWD/kubeconfig" >> $GITHUB_ENV
+
+    - name: Test EKS access
+      run: |
+        aws sts get-caller-identity
+        kubectl version
+        kubectl get nodes
 
     - name: Install Helm
       uses: azure/setup-helm@v3

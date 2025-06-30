@@ -3,10 +3,6 @@ name: CI/CD - Weather API to EKS (Prod)
 on:
   push:
     branches: [ main ]
-    paths:
-      - '**.py'
-      - Dockerfile
-      - .github/workflows/deploy-eks.yml
 
 env:
   IMAGE_NAME: weather-api

@@ -13,23 +13,19 @@ jobs:
     environment: prod
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v2
+    - uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Login to Amazon ECR
-      uses: docker/login-action@v2
+    - uses: docker/login-action@v2
       with:
         registry: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
 
-    - name: Build and Push Docker Image
-      uses: docker/build-push-action@v4
+    - uses: docker/build-push-action@v4
       with:
         context: .
         push: true
@@ -43,31 +39,22 @@ jobs:
     environment: prod
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
-    - name: Configure AWS CLI
-      uses: aws-actions/configure-aws-credentials@v2
+    - uses: aws-actions/configure-aws-credentials@v2
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Extract kubeconfig
+    - name: Setup kubeconfig
       run: |
         echo "${{ secrets.KUBECONFIG_FILE }}" | base64 -d > kubeconfig
         chmod 600 kubeconfig
         echo "KUBECONFIG=$PWD/kubeconfig" >> $GITHUB_ENV
 
-    - name: Test EKS access
-      run: |
-        aws sts get-caller-identity
-        kubectl version
-        kubectl get nodes
+    - uses: azure/setup-helm@v3
 
-    - name: Install Helm
-      uses: azure/setup-helm@v3
-
-    - name: Helm Upgrade
+    - name: Helm Deploy
       run: |
         helm upgrade --install weather ./weather-chart -f weather-chart/values-prod.yaml

@@ -57,6 +57,9 @@ jobs:
       run: |
         echo "${{ secrets.KUBECONFIG_FILE }}" | base64 -d > kubeconfig
         echo "KUBECONFIG=$PWD/kubeconfig" >> $GITHUB_ENV
+        
+    - name: Set KUBECONFIG path
+      run: echo "KUBECONFIG=$PWD/kubeconfig" >> $GITHUB_ENV
 
     - name: Install Helm
       uses: azure/setup-helm@v3

@@ -1,7 +1,7 @@
 replicaCount: 2
 
 image:
-  repository: 467763721296.dkr.ecr.us-west-2.amazonaws.com/weather-api
+  repository: 467763721296.dkr.ecr.us-east-1.amazonaws.com/weather-api
   tag: latest  # or stable if you're pushing with that tag
 
 resources:
